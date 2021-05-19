@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[42]:
 
 
 import pandas as pd
@@ -13,7 +13,7 @@ df = pd.read_csv("1rec-crime-pfa.csv", parse_dates=["12 months ending"])
 df
 
 
-# In[2]:
+# In[43]:
 
 
 dfch = pd.read_excel("population.xlsx", parse_dates=["12 months ending"])
@@ -25,7 +25,7 @@ df_new
 # 1 Гипотеза: Удаление данных организаций не сильно отразится на общую картину распределения преступлений. 
 # Сначала покажем общее распределение преступлений с течением времени до обработки.
 
-# In[3]:
+# In[44]:
 
 
 time_offence = df.groupby("12 months ending").sum()["Rolling year total number of offences"]
@@ -35,7 +35,7 @@ fig_time_offence.show()
 
 # После удаления неудобных данных распределение приняло следующий вид:
 
-# In[4]:
+# In[45]:
 
 
 time_offence_new = df_new.groupby("12 months ending").sum()["Rolling year total number of offences"]
@@ -47,7 +47,7 @@ fig_time_offence_new.show()
 
 # 2 Гипотеза: Нормировка преступлений гораздо точнее покажет опасность отдельных районов. Сначала покажем общее распределение преступлений по регионам до обработки.
 
-# In[5]:
+# In[46]:
 
 
 Region_offence = df_new.groupby("Region").sum()["Rolling year total number of offences"].sort_values()
@@ -57,7 +57,7 @@ fig_Region_offence.show()
 
 # Теперь покажем распределение преступлений с учётом количества жителей в регионах.
 
-# In[6]:
+# In[47]:
 
 
 Region_offence_new = df_new.groupby("Region").sum()["number of offences per 1000 people"].sort_values()
@@ -69,7 +69,7 @@ fig_Region_offence_new.show()
 
 # 3 Гипотеза: В зоне ответственности столичной полиции криминальная обстановка не настолько сильно отличается относительно других районов, если сделать поправку на количество жителей, которое они обхватывают. Покажем, какое распределение мы видели во 2 задании.
 
-# In[7]:
+# In[48]:
 
 
 PFA_offence = df_new.groupby("PFA").sum()["Rolling year total number of offences"].sort_values()
@@ -79,7 +79,7 @@ fig_PFA_offence.show()
 
 # С поправкой на население распределение принимает следующий вид:
 
-# In[8]:
+# In[49]:
 
 
 PFA_offence_new = df_new.groupby("PFA").sum()["number of offences per 1000 people"].sort_values()
@@ -91,7 +91,7 @@ fig_PFA_offence_new.show()
 
 # Гипотеза 4. У разных полицейских участков сильно отличается количество подкотрольных им регионов. Так как полицейских участков намного больше, чем регионов, корректнее было бы сформулировать гипотезу наоборот: в разных регионах количество полицейских отделов сильно разнится.
 
-# In[9]:
+# In[50]:
 
 
 for i in df_new.Region.unique():
@@ -99,9 +99,36 @@ for i in df_new.Region.unique():
         df_new["PFA"].loc[df_new["Region"] == i].unique())
 
 
+# In[51]:
+
+
+import seaborn as sns
+
+
+# In[52]:
+
+
+df_ = df_new.drop_duplicates(subset=["PFA"], keep="first")
+
+
+# In[53]:
+
+
+plt.figure(figsize=(20,8))
+sns.countplot(x="Region", data=df_, palette="Paired");
+
+
+# In[54]:
+
+
+PFA_data = [{name: df_new["PFA"].to_list().count(name) for name in df_new["Region"].unique()}
+                 for i in df_new.Region.unique()
+                 if df_new["Region"] == i]
+
+
 # Можно, конечно, отобразить, как было изначально сформулировано, но так менее наглядно. Зато отчётливо видно, что ни один полицейский участок не дежурит сразу в нескольких регионах страны.
 
-# In[10]:
+# In[55]:
 
 
 for i in df_new.PFA.unique():
@@ -113,7 +140,20 @@ for i in df_new.PFA.unique():
 
 # 5 Гипотеза: возможно, уровень преступности как-то коррелирует с широтами, в которых находится регион, например, чем южнее, тем больше в среднем совершается в год преступлений.
 
-# In[11]:
+# In[56]:
+
+
+df_Region_offence_new = pd.DataFrame(Region_offence_new)
+df_Region_offence_new.reset_index()
+
+
+# In[57]:
+
+
+df_Region_offence_new.dtypes
+
+
+# In[78]:
 
 
 from urllib.request import urlopen
@@ -123,10 +163,16 @@ with urlopen('https://martinjc.github.io/UK-GeoJSON/json/eng/topo_eer.json') as 
 UK['objects']['eer']['geometries'][0]['properties']
 
 
-# In[25]:
+# In[82]:
 
 
-fig = px.choropleth(df_new, geojson=UK, locations='Region', 
+json.dump(UK, "uk_geo.geojson")
+
+
+# In[59]:
+
+
+fig = px.choropleth(df_Region_offence_new, geojson=UK, locations='Region', 
                     featureidkey="properties.EER13NM",
                     color='number of offences per 1000 people',
                            color_continuous_scale="tealrose",
@@ -138,66 +184,70 @@ fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 fig.show()
 
 
-# In[23]:
+# Я не понимаю...
+
+# In[73]:
 
 
-Region_offence_new 
+list1 = ["South West", "East", "South East", "Wales", "West Midlands", "East Midlands", "North East", "North West", "Yorkshire and The Humber", "London"]
+list2 = [3321, 3321, 3501, 3565, 3678, 3743, 3842, 4190, 4406, 5123]
+df_Region_offence = pd.DataFrame({'Region' : list1, 'number of offences per 1000 people' : list2})
+df_Region_offence
 
 
-# In[26]:
+# In[75]:
 
 
-fig = px.choropleth(Region_offence_new , geojson=UK, locations='Region', 
+df_Region_offence.reset_index(drop=True, inplace=True)
+df_Region_offence
+
+
+# In[64]:
+
+
+UK['objects']['eer']['geometries'][0]['properties']
+
+
+# In[65]:
+
+
+df_Region_offence.dtypes
+
+
+# In[70]:
+
+
+fig = px.choropleth(df_Region_offence, geojson=UK, locations='Region', 
                     featureidkey="properties.EER13NM",
                     color='number of offences per 1000 people',
                            color_continuous_scale="tealrose",
                            scope = "europe",
-                           range_color=(3000, 5000),
+                           range_color=(0, 5000),
                            labels={'number':'number of offences per 1000 people'},
                           )
 fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 fig.show()
 
 
-# In[27]:
+# In[71]:
 
 
-fig = px.choropleth(Region_offence_new , geojson=UK, 
-                    featureidkey="properties.EER13NM",
-                    color='number of offences per 1000 people',
-                           color_continuous_scale="tealrose",
-                           scope = "europe",
-                           range_color=(3000, 5000),
-                           labels={'number':'number of offences per 1000 people'},
-                          )
-fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-fig.show()
-
-
-# In[39]:
-
-
-df_Region_offence_new  = pd.DataFrame(Region_offence_new)
-df_Region_offence_new 
-
-
-# In[31]:
-
-
-fig = px.choropleth(Region_offence_new , geojson=UK, locations='Region', 
-                    featureidkey="properties.EER13NM",
-                    color='number of offences per 1000 people',
-                           color_continuous_scale="tealrose",
-                           scope = "europe",
-                           range_color=(3000, 5000),
-                           labels={'number':'number of offences per 1000 people'},
-                          )
-fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-fig.show()
+df_Region_offence.to_csv("Region_offence")
 
 
 # In[ ]:
 
 
-
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+    {
+        "type": "Feature",
+        "geometry" : {
+            "type": "Point",
+            "coordinates": [d["lon"], d["lat"]],
+            },
+        "properties" : d,
+     } for d in data]
+}
 
